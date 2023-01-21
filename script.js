@@ -1,5 +1,5 @@
 var zhufuyu = "2023";
-var daojishi = "2023/1/22 00:00:00";
+var daojishi = "2024/2/10 00:00:00";
 var tishi = "大年初一倒计时";
 
 document.getElementById("label").innerHTML = tishi;
