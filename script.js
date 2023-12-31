@@ -1,6 +1,6 @@
 var zhufuyu = "2024";
-var daojishi = "2024/2/10 00:00:00";
-var tishi = "大年初一倒计时";
+var daojishi = "2024/1/1 00:00:00";
+var tishi = "跨越";
 
 document.getElementById("label").innerHTML = tishi;
 class Snowflake {
