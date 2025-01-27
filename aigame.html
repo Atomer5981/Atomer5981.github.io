@@ -2,10 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Adventure Map</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile Adapted Adventure</title>
     <style>
-        /* 修复后的CSS */
         * {
             margin: 0;
             padding: 0;
@@ -16,27 +15,31 @@
             overflow: hidden;
             background: #333;
             touch-action: none;
+            --base-scale: 1;
         }
 
         #gameContainer {
-            width: 100vw;
-            height: 100vh;
-            position: relative;
-            transform: rotateX(45deg) scale(0.9);
+            position: fixed;
+            width: 100vmin;
+            height: 100vmin;
+            transform: 
+                rotateX(45deg) 
+                scale(calc(0.9 * var(--base-scale))) 
+                translate(calc(50vw - 50vmin), calc(50vh - 50vmin));
             transform-style: preserve-3d;
             perspective: 1000px;
         }
 
         #world {
-            width: 2000px;
-            height: 2000px;
+            width: 100%;
+            height: 100%;
             position: relative;
             background: linear-gradient(45deg, #6d8c54, #8abf6a);
         }
 
         #player {
-            width: 40px;
-            height: 60px;
+            width: 4%;
+            height: 6%;
             position: absolute;
             background: #e74c3c;
             clip-path: polygon(0 0, 100% 0, 80% 100%, 20% 100%);
@@ -53,70 +56,66 @@
             to { transform: rotateZ(3deg); }
         }
 
-        /* 虚拟摇杆修复 */
+        /* 虚拟摇杆 */
         #joystick {
             display: none;
             position: fixed;
-            bottom: 50px;
-            left: 50px;
-            width: 100px;
-            height: 100px;
+            bottom: 15vh;
+            left: 10vw;
+            width: 25vmin;
+            height: 25vmin;
             background: rgba(255, 255, 255, 0.2);
             border-radius: 50%;
             z-index: 101;
+            touch-action: none;
         }
 
         #joystickHandle {
             position: absolute;
-            width: 40px;
-            height: 40px;
+            width: 40%;
+            height: 40%;
             background: rgba(255, 255, 255, 0.5);
             border-radius: 50%;
             transform: translate(-50%, -50%);
         }
 
-        /* 修复教程弹窗 */
+        /* 教程弹窗 */
         .tutorial {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.95);
             color: white;
-            padding: 2rem;
-            border-radius: 10px;
+            padding: 4vmin;
+            border-radius: 2vmin;
             text-align: center;
-            animation: fadeIn 0.5s;
-            z-index: 9999; /* 确保最高层级 */
-            pointer-events: auto; /* 确保可交互 */
+            z-index: 9999;
+            width: 90vw;
+            max-width: 500px;
+            font-size: clamp(14px, 4vmin, 20px);
         }
 
         .tutorial button {
-            margin-top: 1rem;
-            padding: 0.5rem 2rem;
+            margin-top: 3vmin;
+            padding: 2vmin 6vmin;
             background: #3498db;
             border: none;
             color: white;
-            border-radius: 5px;
+            border-radius: 1vmin;
             cursor: pointer;
-            font-size: 1.1rem;
+            font-size: clamp(16px, 4vmin, 24px);
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translate(-50%, -60%); }
-            to { opacity: 1; transform: translate(-50%, -50%); }
-        }
-
-        /* 添加游戏容器禁用状态 */
-        .disable-interaction {
-            pointer-events: none;
-            filter: blur(2px);
-            opacity: 0.7;
+        @media (orientation: landscape) {
+            #joystick {
+                bottom: 10vh;
+                left: 5vw;
+            }
         }
     </style>
 </head>
 <body>
-    <!-- 调整HTML结构 -->
     <div class="tutorial">
         <h2>操作说明</h2>
         <p>电脑端: 使用 WASD 移动</p>
@@ -124,7 +123,7 @@
         <button onclick="startGame()">开始游戏</button>
     </div>
 
-    <div id="gameContainer" class="disable-interaction">
+    <div id="gameContainer">
         <div id="world">
             <div id="player"></div>
         </div>
@@ -134,7 +133,6 @@
     </div>
 
     <script>
-        // 修复后的JavaScript
         const player = document.getElementById('player');
         const world = document.getElementById('world');
         const joystick = document.getElementById('joystick');
@@ -145,31 +143,35 @@
         let isMobile = false;
         let joystickPos = { x: 0, y: 0 };
         let touchId = null;
-        const speed = 5;
-        let playerPos = { x: 500, y: 500 };
+        let baseSpeed = 2;
+        let playerPos = { x: 50, y: 50 }; // 百分比位置
 
-        // 初始化位置
-        player.style.left = playerPos.x + 'px';
-        player.style.top = playerPos.y + 'px';
-
-        function detectDevice() {
-            const hasTouch = 'ontouchstart' in window;
-            const isSmallScreen = window.matchMedia("(max-width: 768px)").matches;
-            isMobile = hasTouch || isSmallScreen;
-            
-            if (!isMobile) {
-                joystick.style.display = 'none';
-            } else {
-                joystick.style.display = 'block';
-            }
+        // 动态缩放系统
+        function updateScale() {
+            const isPortrait = window.innerHeight > window.innerWidth;
+            const scaleValue = Math.min(
+                window.innerWidth / 1000,
+                window.innerHeight / 1000
+            );
+            document.documentElement.style.setProperty('--base-scale', scaleValue);
         }
 
-        function initControls() {
-            if (isMobile) {
+        // 设备检测与初始化
+        function init() {
+            isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            updateScale();
+            window.addEventListener('resize', updateScale);
+            
+            if(isMobile) {
                 initTouchControls();
+                joystick.style.display = 'block';
             } else {
                 initKeyboardControls();
+                joystick.style.display = 'none';
             }
+
+            // 初始化玩家位置
+            updatePlayerPosition();
         }
 
         function initKeyboardControls() {
@@ -182,12 +184,15 @@
         }
 
         function initTouchControls() {
-            const rect = joystick.getBoundingClientRect();
-            joystickPos.x = rect.left + rect.width/2;
-            joystickPos.y = rect.top + rect.height/2;
+            const updateJoystickPosition = () => {
+                const rect = joystick.getBoundingClientRect();
+                joystickPos.x = rect.left + rect.width/2;
+                joystickPos.y = rect.top + rect.height/2;
+            };
 
             joystick.addEventListener('touchstart', (e) => {
                 e.preventDefault();
+                updateJoystickPosition();
                 handleTouch(e.touches[0]);
                 touchId = e.touches[0].identifier;
             });
@@ -210,43 +215,39 @@
         function handleTouch(touch) {
             const dx = touch.clientX - joystickPos.x;
             const dy = touch.clientY - joystickPos.y;
-            const distance = Math.sqrt(dx*dx + dy*dy);
-            const maxDistance = 40;
+            const maxDistance = joystick.offsetWidth * 0.4;
+            const distance = Math.min(Math.sqrt(dx*dx + dy*dy), maxDistance);
+            const angle = Math.atan2(dy, dx);
 
-            if(distance > maxDistance) {
-                const angle = Math.atan2(dy, dx);
-                joystickHandle.style.left = Math.cos(angle)*maxDistance + 'px';
-                joystickHandle.style.top = Math.sin(angle)*maxDistance + 'px';
-            } else {
-                joystickHandle.style.left = dx + 'px';
-                joystickHandle.style.top = dy + 'px';
-            }
+            joystickHandle.style.left = `${Math.cos(angle) * distance}px`;
+            joystickHandle.style.top = `${Math.sin(angle) * distance}px`;
 
             keys = {
-                w: dy < -20,
-                s: dy > 20,
-                a: dx < -20,
-                d: dx > 20
+                w: dy < -maxDistance * 0.5,
+                s: dy > maxDistance * 0.5,
+                a: dx < -maxDistance * 0.5,
+                d: dx > maxDistance * 0.5
             };
+        }
+
+        function updatePlayerPosition() {
+            player.style.left = `${playerPos.x}%`;
+            player.style.top = `${playerPos.y}%`;
         }
 
         function update() {
             let dx = 0, dy = 0;
-            
-            if(keys.w || keys.arrowup) dy -= speed;
-            if(keys.s || keys.arrowdown) dy += speed;
-            if(keys.a || keys.arrowleft) dx -= speed;
-            if(keys.d || keys.arrowright) dx += speed;
+            const speed = baseSpeed * (isMobile ? 1.5 : 1);
 
-            playerPos.x += dx;
-            playerPos.y += dy;
+            if(keys.w) dy -= speed;
+            if(keys.s) dy += speed;
+            if(keys.a) dx -= speed;
+            if(keys.d) dx += speed;
 
-            playerPos.x = Math.max(0, Math.min(1960, playerPos.x));
-            playerPos.y = Math.max(0, Math.min(1940, playerPos.y));
+            playerPos.x = Math.max(2, Math.min(98, playerPos.x + dx));
+            playerPos.y = Math.max(2, Math.min(98, playerPos.y + dy));
 
-            player.style.left = playerPos.x + 'px';
-            player.style.top = playerPos.y + 'px';
-            world.style.transform = `translate(${-playerPos.x + 500}px, ${-playerPos.y + 300}px)`;
+            updatePlayerPosition();
 
             if(dx !== 0 || dy !== 0) {
                 player.classList.add('walk');
@@ -260,22 +261,13 @@
 
         function startGame() {
             tutorial.style.display = 'none';
-            gameContainer.classList.remove('disable-interaction');
+            gameContainer.style.pointerEvents = 'auto';
             update();
         }
 
-        // 初始化流程
-        detectDevice();
-        initControls();
-        
-        // 防止手机端触摸滚动
-        document.addEventListener('touchmove', (e) => {
-            if(e.cancelable) e.preventDefault();
-        }, { passive: false });
-
-        // 确保按钮可点击
-        tutorial.style.display = 'block';
-        gameContainer.classList.add('disable-interaction');
+        // 初始化游戏
+        init();
+        document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
     </script>
 </body>
 </html>
