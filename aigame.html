@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adventure Map</title>
+    <style>
+        /* 修复后的CSS */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: #333;
+            touch-action: none;
+        }
+
+        #gameContainer {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            transform: rotateX(45deg) scale(0.9);
+            transform-style: preserve-3d;
+            perspective: 1000px;
+        }
+
+        #world {
+            width: 2000px;
+            height: 2000px;
+            position: relative;
+            background: linear-gradient(45deg, #6d8c54, #8abf6a);
+        }
+
+        #player {
+            width: 40px;
+            height: 60px;
+            position: absolute;
+            background: #e74c3c;
+            clip-path: polygon(0 0, 100% 0, 80% 100%, 20% 100%);
+            transition: transform 0.2s;
+            transform-origin: bottom;
+        }
+
+        #player.walk {
+            animation: walk 0.6s infinite alternate;
+        }
+
+        @keyframes walk {
+            from { transform: rotateZ(-3deg); }
+            to { transform: rotateZ(3deg); }
+        }
+
+        /* 虚拟摇杆修复 */
+        #joystick {
+            display: none;
+            position: fixed;
+            bottom: 50px;
+            left: 50px;
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            z-index: 101;
+        }
+
+        #joystickHandle {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* 修复教程弹窗 */
+        .tutorial {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            text-align: center;
+            animation: fadeIn 0.5s;
+            z-index: 9999; /* 确保最高层级 */
+            pointer-events: auto; /* 确保可交互 */
+        }
+
+        .tutorial button {
+            margin-top: 1rem;
+            padding: 0.5rem 2rem;
+            background: #3498db;
+            border: none;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1rem;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -60%); }
+            to { opacity: 1; transform: translate(-50%, -50%); }
+        }
+
+        /* 添加游戏容器禁用状态 */
+        .disable-interaction {
+            pointer-events: none;
+            filter: blur(2px);
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <!-- 调整HTML结构 -->
+    <div class="tutorial">
+        <h2>操作说明</h2>
+        <p>电脑端: 使用 WASD 移动</p>
+        <p>手机端: 使用虚拟摇杆移动</p>
+        <button onclick="startGame()">开始游戏</button>
+    </div>
+
+    <div id="gameContainer" class="disable-interaction">
+        <div id="world">
+            <div id="player"></div>
+        </div>
+    </div>
+    <div id="joystick">
+        <div id="joystickHandle"></div>
+    </div>
+
+    <script>
+        // 修复后的JavaScript
+        const player = document.getElementById('player');
+        const world = document.getElementById('world');
+        const joystick = document.getElementById('joystick');
+        const gameContainer = document.getElementById('gameContainer');
+        const tutorial = document.querySelector('.tutorial');
+        
+        let keys = {};
+        let isMobile = false;
+        let joystickPos = { x: 0, y: 0 };
+        let touchId = null;
+        const speed = 5;
+        let playerPos = { x: 500, y: 500 };
+
+        // 初始化位置
+        player.style.left = playerPos.x + 'px';
+        player.style.top = playerPos.y + 'px';
+
+        function detectDevice() {
+            const hasTouch = 'ontouchstart' in window;
+            const isSmallScreen = window.matchMedia("(max-width: 768px)").matches;
+            isMobile = hasTouch || isSmallScreen;
+            
+            if (!isMobile) {
+                joystick.style.display = 'none';
+            } else {
+                joystick.style.display = 'block';
+            }
+        }
+
+        function initControls() {
+            if (isMobile) {
+                initTouchControls();
+            } else {
+                initKeyboardControls();
+            }
+        }
+
+        function initKeyboardControls() {
+            window.addEventListener('keydown', e => {
+                keys[e.key.toLowerCase()] = true;
+            });
+            window.addEventListener('keyup', e => {
+                keys[e.key.toLowerCase()] = false;
+            });
+        }
+
+        function initTouchControls() {
+            const rect = joystick.getBoundingClientRect();
+            joystickPos.x = rect.left + rect.width/2;
+            joystickPos.y = rect.top + rect.height/2;
+
+            joystick.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                handleTouch(e.touches[0]);
+                touchId = e.touches[0].identifier;
+            });
+
+            document.addEventListener('touchmove', (e) => {
+                for(let touch of e.touches) {
+                    if(touch.identifier === touchId) {
+                        handleTouch(touch);
+                    }
+                }
+            });
+
+            document.addEventListener('touchend', () => {
+                joystickHandle.style.left = '50%';
+                joystickHandle.style.top = '50%';
+                keys = {};
+            });
+        }
+
+        function handleTouch(touch) {
+            const dx = touch.clientX - joystickPos.x;
+            const dy = touch.clientY - joystickPos.y;
+            const distance = Math.sqrt(dx*dx + dy*dy);
+            const maxDistance = 40;
+
+            if(distance > maxDistance) {
+                const angle = Math.atan2(dy, dx);
+                joystickHandle.style.left = Math.cos(angle)*maxDistance + 'px';
+                joystickHandle.style.top = Math.sin(angle)*maxDistance + 'px';
+            } else {
+                joystickHandle.style.left = dx + 'px';
+                joystickHandle.style.top = dy + 'px';
+            }
+
+            keys = {
+                w: dy < -20,
+                s: dy > 20,
+                a: dx < -20,
+                d: dx > 20
+            };
+        }
+
+        function update() {
+            let dx = 0, dy = 0;
+            
+            if(keys.w || keys.arrowup) dy -= speed;
+            if(keys.s || keys.arrowdown) dy += speed;
+            if(keys.a || keys.arrowleft) dx -= speed;
+            if(keys.d || keys.arrowright) dx += speed;
+
+            playerPos.x += dx;
+            playerPos.y += dy;
+
+            playerPos.x = Math.max(0, Math.min(1960, playerPos.x));
+            playerPos.y = Math.max(0, Math.min(1940, playerPos.y));
+
+            player.style.left = playerPos.x + 'px';
+            player.style.top = playerPos.y + 'px';
+            world.style.transform = `translate(${-playerPos.x + 500}px, ${-playerPos.y + 300}px)`;
+
+            if(dx !== 0 || dy !== 0) {
+                player.classList.add('walk');
+                player.style.transform = `scaleX(${dx < 0 ? -1 : 1})`;
+            } else {
+                player.classList.remove('walk');
+            }
+
+            requestAnimationFrame(update);
+        }
+
+        function startGame() {
+            tutorial.style.display = 'none';
+            gameContainer.classList.remove('disable-interaction');
+            update();
+        }
+
+        // 初始化流程
+        detectDevice();
+        initControls();
+        
+        // 防止手机端触摸滚动
+        document.addEventListener('touchmove', (e) => {
+            if(e.cancelable) e.preventDefault();
+        }, { passive: false });
+
+        // 确保按钮可点击
+        tutorial.style.display = 'block';
+        gameContainer.classList.add('disable-interaction');
+    </script>
+</body>
+</html>
