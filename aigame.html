@@ -1,273 +1,161 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mobile Adapted Adventure</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>极速跑者</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            overflow: hidden;
-            background: #333;
-            touch-action: none;
-            --base-scale: 1;
-        }
-
-        #gameContainer {
-            position: fixed;
-            width: 100vmin;
-            height: 100vmin;
-            transform: 
-                rotateX(45deg) 
-                scale(calc(0.9 * var(--base-scale))) 
-                translate(calc(50vw - 50vmin), calc(50vh - 50vmin));
-            transform-style: preserve-3d;
-            perspective: 1000px;
-        }
-
-        #world {
-            width: 100%;
-            height: 100%;
-            position: relative;
-            background: linear-gradient(45deg, #6d8c54, #8abf6a);
-        }
-
-        #player {
-            width: 4%;
-            height: 6%;
-            position: absolute;
-            background: #e74c3c;
-            clip-path: polygon(0 0, 100% 0, 80% 100%, 20% 100%);
-            transition: transform 0.2s;
-            transform-origin: bottom;
-        }
-
-        #player.walk {
-            animation: walk 0.6s infinite alternate;
-        }
-
-        @keyframes walk {
-            from { transform: rotateZ(-3deg); }
-            to { transform: rotateZ(3deg); }
-        }
-
-        /* 虚拟摇杆 */
-        #joystick {
-            display: none;
-            position: fixed;
-            bottom: 15vh;
-            left: 10vw;
-            width: 25vmin;
-            height: 25vmin;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 50%;
-            z-index: 101;
-            touch-action: none;
-        }
-
-        #joystickHandle {
-            position: absolute;
-            width: 40%;
-            height: 40%;
-            background: rgba(255, 255, 255, 0.5);
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-        }
-
-        /* 教程弹窗 */
-        .tutorial {
+        /* 原有样式保持不变... */
+        
+        /* 新增开始界面动画 */
+        #startScreen {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.95);
-            color: white;
-            padding: 4vmin;
-            border-radius: 2vmin;
             text-align: center;
-            z-index: 9999;
-            width: 90vw;
-            max-width: 500px;
-            font-size: clamp(14px, 4vmin, 20px);
-        }
-
-        .tutorial button {
-            margin-top: 3vmin;
-            padding: 2vmin 6vmin;
-            background: #3498db;
-            border: none;
             color: white;
-            border-radius: 1vmin;
-            cursor: pointer;
-            font-size: clamp(16px, 4vmin, 24px);
+            animation: titleFloat 2s ease-in-out infinite;
         }
 
-        @media (orientation: landscape) {
-            #joystick {
-                bottom: 10vh;
-                left: 5vw;
-            }
+        @keyframes titleFloat {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -55%) scale(1.05); }
+        }
+
+        .game-instructions {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            line-height: 1.6;
+        }
+
+        .controls-list {
+            list-style: none;
+            padding: 10px 0;
+        }
+
+        .controls-list li {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .key-icon {
+            display: inline-block;
+            padding: 5px 10px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 5px;
+            border: 1px solid white;
+        }
+
+        /* 角色待机动画 */
+        #runner.idle {
+            animation: idle 1.5s ease-in-out infinite;
+        }
+
+        @keyframes idle {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-20px) scale(1.1); }
+        }
+
+        /* 游戏开始过渡动画 */
+        .game-start {
+            animation: gameStart 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes gameStart {
+            0% { opacity: 0; transform: scale(0.8); }
+            100% { opacity: 1; transform: scale(1); }
         }
     </style>
 </head>
 <body>
-    <div class="tutorial">
-        <h2>操作说明</h2>
-        <p>电脑端: 使用 WASD 移动</p>
-        <p>手机端: 使用虚拟摇杆移动</p>
-        <button onclick="startGame()">开始游戏</button>
-    </div>
-
     <div id="gameContainer">
-        <div id="world">
-            <div id="player"></div>
+        <div class="ground"></div>
+        <div id="score">0</div>
+        <div id="runner" class="idle">🏃♂️</div>
+        <div id="startScreen" class="game-start">
+            <h1>极速跑者</h1>
+            <div class="game-instructions">
+                <p>躲避障碍物，坚持越久越好！</p>
+                <ul class="controls-list">
+                    <li>📱 手机：点击屏幕任意位置跳跃</li>
+                    <li>🖥️ 电脑：按下<span class="key-icon">空格键</span>跳跃</li>
+                </ul>
+            </div>
+            <button onclick="startGame()">开始挑战！</button>
         </div>
-    </div>
-    <div id="joystick">
-        <div id="joystickHandle"></div>
     </div>
 
     <script>
-        const player = document.getElementById('player');
-        const world = document.getElementById('world');
-        const joystick = document.getElementById('joystick');
-        const gameContainer = document.getElementById('gameContainer');
-        const tutorial = document.querySelector('.tutorial');
-        
-        let keys = {};
-        let isMobile = false;
-        let joystickPos = { x: 0, y: 0 };
-        let touchId = null;
-        let baseSpeed = 2;
-        let playerPos = { x: 50, y: 50 }; // 百分比位置
-
-        // 动态缩放系统
-        function updateScale() {
-            const isPortrait = window.innerHeight > window.innerWidth;
-            const scaleValue = Math.min(
-                window.innerWidth / 1000,
-                window.innerHeight / 1000
-            );
-            document.documentElement.style.setProperty('--base-scale', scaleValue);
-        }
-
-        // 设备检测与初始化
-        function init() {
-            isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            updateScale();
-            window.addEventListener('resize', updateScale);
-            
-            if(isMobile) {
-                initTouchControls();
-                joystick.style.display = 'block';
-            } else {
-                initKeyboardControls();
-                joystick.style.display = 'none';
-            }
-
-            // 初始化玩家位置
-            updatePlayerPosition();
-        }
-
-        function initKeyboardControls() {
-            window.addEventListener('keydown', e => {
-                keys[e.key.toLowerCase()] = true;
-            });
-            window.addEventListener('keyup', e => {
-                keys[e.key.toLowerCase()] = false;
-            });
-        }
-
-        function initTouchControls() {
-            const updateJoystickPosition = () => {
-                const rect = joystick.getBoundingClientRect();
-                joystickPos.x = rect.left + rect.width/2;
-                joystickPos.y = rect.top + rect.height/2;
-            };
-
-            joystick.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                updateJoystickPosition();
-                handleTouch(e.touches[0]);
-                touchId = e.touches[0].identifier;
-            });
-
-            document.addEventListener('touchmove', (e) => {
-                for(let touch of e.touches) {
-                    if(touch.identifier === touchId) {
-                        handleTouch(touch);
-                    }
-                }
-            });
-
-            document.addEventListener('touchend', () => {
-                joystickHandle.style.left = '50%';
-                joystickHandle.style.top = '50%';
-                keys = {};
-            });
-        }
-
-        function handleTouch(touch) {
-            const dx = touch.clientX - joystickPos.x;
-            const dy = touch.clientY - joystickPos.y;
-            const maxDistance = joystick.offsetWidth * 0.4;
-            const distance = Math.min(Math.sqrt(dx*dx + dy*dy), maxDistance);
-            const angle = Math.atan2(dy, dx);
-
-            joystickHandle.style.left = `${Math.cos(angle) * distance}px`;
-            joystickHandle.style.top = `${Math.sin(angle) * distance}px`;
-
-            keys = {
-                w: dy < -maxDistance * 0.5,
-                s: dy > maxDistance * 0.5,
-                a: dx < -maxDistance * 0.5,
-                d: dx > maxDistance * 0.5
-            };
-        }
-
-        function updatePlayerPosition() {
-            player.style.left = `${playerPos.x}%`;
-            player.style.top = `${playerPos.y}%`;
-        }
-
-        function update() {
-            let dx = 0, dy = 0;
-            const speed = baseSpeed * (isMobile ? 1.5 : 1);
-
-            if(keys.w) dy -= speed;
-            if(keys.s) dy += speed;
-            if(keys.a) dx -= speed;
-            if(keys.d) dx += speed;
-
-            playerPos.x = Math.max(2, Math.min(98, playerPos.x + dx));
-            playerPos.y = Math.max(2, Math.min(98, playerPos.y + dy));
-
-            updatePlayerPosition();
-
-            if(dx !== 0 || dy !== 0) {
-                player.classList.add('walk');
-                player.style.transform = `scaleX(${dx < 0 ? -1 : 1})`;
-            } else {
-                player.classList.remove('walk');
-            }
-
-            requestAnimationFrame(update);
-        }
+        // ...原有代码保持不变...
 
         function startGame() {
-            tutorial.style.display = 'none';
-            gameContainer.style.pointerEvents = 'auto';
-            update();
+            gameActive = true;
+            score = 0;
+            scoreElement.textContent = '0';
+            
+            // 移除开始界面动画
+            const startScreen = document.getElementById('startScreen');
+            startScreen.style.animation = 'fadeOut 0.5s forwards';
+            
+            // 移除角色待机动画
+            runner.classList.remove('idle');
+            
+            // 重置角色位置
+            runner.style.transform = 'translateY(0)';
+
+            // 清除现有障碍物
+            document.querySelectorAll('.obstacle').forEach(obs => obs.remove());
+            
+            // 启动障碍物生成
+            obstacleInterval = setInterval(createObstacle, 1500);
+            
+            // 添加游戏开始动画
+            gameContainer.classList.add('game-start');
         }
 
-        // 初始化游戏
-        init();
-        document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+        // 新增动画函数
+        function fadeOut(element) {
+            element.style.opacity = 1;
+            (function fade() {
+                if ((element.style.opacity -= 0.1) < 0) {
+                    element.style.display = "none";
+                } else {
+                    requestAnimationFrame(fade);
+                }
+            })();
+        }
+
+        // 修改游戏结束逻辑
+        function gameOver() {
+            gameActive = false;
+            clearInterval(obstacleInterval);
+            
+            // 显示开始界面
+            const startScreen = document.getElementById('startScreen');
+            startScreen.style.display = 'block';
+            startScreen.style.animation = 'fadeIn 0.5s forwards';
+            
+            // 恢复角色待机动画
+            runner.classList.add('idle');
+            
+            alert(`游戏结束！得分：${score}`);
+        }
+
+        // 新增淡入动画
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            to { opacity: 0; }
+        }
     </script>
 </body>
 </html>
