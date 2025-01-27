@@ -1,3 +1,4 @@
+<!-- Code With AI -->
 <!DOCTYPE html>
 <html lang="zh">
 <head>
@@ -5,26 +6,99 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>极速跑者</title>
     <style>
-        /* 原有样式保持不变... */
-        
-        /* 新增动画 */
-        @keyframes titleFloat {
-            0%, 100% { transform: translate(-50%, -50%) scale(1); }
-            50% { transform: translate(-50%, -55%) scale(1.05); }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        body {
+            overflow: hidden;
+            touch-action: none;
+            background: #2c3e50;
+            font-family: Arial, sans-serif;
         }
 
-        @keyframes fadeOut {
-            to { opacity: 0; }
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
         }
 
-        @keyframes idle {
-            0%, 100% { transform: translateY(0) scale(1); }
-            50% { transform: translateY(-20px) scale(1.1); }
+        #runner {
+            position: absolute;
+            bottom: 100px;
+            left: 100px;
+            width: 60px;
+            height: 60px;
+            transition: transform 0.3s;
+        }
+
+        .obstacle {
+            position: absolute;
+            bottom: 100px;
+            width: 40px;
+            height: 40px;
+            background: #e74c3c;
+            border-radius: 10px;
+            animation: obstacleMove 3s linear infinite;
+        }
+
+        #score {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 24px;
+            text-shadow: 2px 2px 2px rgba(0,0,0,0.5);
+        }
+
+        #startScreen {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+        }
+
+        .jump {
+            animation: jump 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes jump {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-150px); }
+            100% { transform: translateY(0); }
+        }
+
+        @keyframes obstacleMove {
+            from { right: -50px; }
+            to { right: 100%; }
+        }
+
+        .ground {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 100px;
+            background: #27ae60;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 20px;
+            background: #3498db;
+            border: none;
+            color: white;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:active {
+            transform: scale(0.95);
         }
 
         .game-instructions {
@@ -34,16 +108,45 @@
             margin: 20px 0;
             line-height: 1.6;
         }
+
+        .controls-list {
+            list-style: none;
+            padding: 10px 0;
+        }
+
+        #runner.idle {
+            animation: idle 1.5s ease-in-out infinite;
+        }
+
+        @keyframes idle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
     </style>
 </head>
 <body>
-    <!-- 保持原有HTML结构不变... -->
+    <div id="gameContainer">
+        <div class="ground"></div>
+        <div id="score">0</div>
+        <div id="runner" class="idle">🏃♂️</div>
+        <div id="startScreen">
+            <h1>极速跑者</h1>
+            <div class="game-instructions">
+                <p>躲避障碍物，坚持越久越好！</p>
+                <ul class="controls-list">
+                    <li>📱 手机：点击屏幕任意位置跳跃</li>
+                    <li>🖥️ 电脑：按下<span class="key-icon">空格键</span>跳跃</li>
+                </ul>
+            </div>
+            <button onclick="startGame()">开始挑战！</button>
+        </div>
+    </div>
 
     <script>
         let isJumping = false;
         let score = 0;
         let gameActive = false;
-        let obstacleInterval; // 新增间隔变量
+        let obstacleInterval;
 
         const runner = document.getElementById('runner');
         const scoreElement = document.getElementById('score');
@@ -72,12 +175,9 @@
             score = 0;
             scoreElement.textContent = '0';
             
-            // 隐藏开始界面
-            startScreen.style.animation = 'fadeOut 0.5s forwards';
-            setTimeout(() => {
-                startScreen.style.display = 'none';
-            }, 500);
-
+            // 立即隐藏开始界面
+            startScreen.style.display = 'none';
+            
             // 重置角色状态
             runner.classList.remove('idle');
             runner.style.transform = 'translateY(0)';
@@ -86,6 +186,7 @@
             document.querySelectorAll('.obstacle').forEach(obs => obs.remove());
             
             // 启动障碍物生成
+            clearInterval(obstacleInterval); // 清除旧的间隔
             obstacleInterval = setInterval(createObstacle, 1500);
         }
 
@@ -131,7 +232,6 @@
             
             // 显示开始界面
             startScreen.style.display = 'block';
-            startScreen.style.animation = 'fadeIn 0.5s';
             
             // 恢复角色动画
             runner.classList.add('idle');
