@@ -7,20 +7,24 @@
     <style>
         /* 原有样式保持不变... */
         
-        /* 新增开始界面动画 */
-        #startScreen {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            color: white;
-            animation: titleFloat 2s ease-in-out infinite;
-        }
-
+        /* 新增动画 */
         @keyframes titleFloat {
             0%, 100% { transform: translate(-50%, -50%) scale(1); }
             50% { transform: translate(-50%, -55%) scale(1.05); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            to { opacity: 0; }
+        }
+
+        @keyframes idle {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-20px) scale(1.1); }
         }
 
         .game-instructions {
@@ -30,83 +34,52 @@
             margin: 20px 0;
             line-height: 1.6;
         }
-
-        .controls-list {
-            list-style: none;
-            padding: 10px 0;
-        }
-
-        .controls-list li {
-            margin: 10px 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .key-icon {
-            display: inline-block;
-            padding: 5px 10px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 5px;
-            border: 1px solid white;
-        }
-
-        /* 角色待机动画 */
-        #runner.idle {
-            animation: idle 1.5s ease-in-out infinite;
-        }
-
-        @keyframes idle {
-            0%, 100% { transform: translateY(0) scale(1); }
-            50% { transform: translateY(-20px) scale(1.1); }
-        }
-
-        /* 游戏开始过渡动画 */
-        .game-start {
-            animation: gameStart 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        @keyframes gameStart {
-            0% { opacity: 0; transform: scale(0.8); }
-            100% { opacity: 1; transform: scale(1); }
-        }
     </style>
 </head>
 <body>
-    <div id="gameContainer">
-        <div class="ground"></div>
-        <div id="score">0</div>
-        <div id="runner" class="idle">🏃♂️</div>
-        <div id="startScreen" class="game-start">
-            <h1>极速跑者</h1>
-            <div class="game-instructions">
-                <p>躲避障碍物，坚持越久越好！</p>
-                <ul class="controls-list">
-                    <li>📱 手机：点击屏幕任意位置跳跃</li>
-                    <li>🖥️ 电脑：按下<span class="key-icon">空格键</span>跳跃</li>
-                </ul>
-            </div>
-            <button onclick="startGame()">开始挑战！</button>
-        </div>
-    </div>
+    <!-- 保持原有HTML结构不变... -->
 
     <script>
-        // ...原有代码保持不变...
+        let isJumping = false;
+        let score = 0;
+        let gameActive = false;
+        let obstacleInterval; // 新增间隔变量
+
+        const runner = document.getElementById('runner');
+        const scoreElement = document.getElementById('score');
+        const gameContainer = document.getElementById('gameContainer');
+        const startScreen = document.getElementById('startScreen');
+
+        // 事件监听
+        document.addEventListener('touchstart', handleJump);
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') handleJump();
+        });
+
+        function handleJump() {
+            if (!isJumping && gameActive) {
+                isJumping = true;
+                runner.classList.add('jump');
+                setTimeout(() => {
+                    runner.classList.remove('jump');
+                    isJumping = false;
+                }, 800);
+            }
+        }
 
         function startGame() {
             gameActive = true;
             score = 0;
             scoreElement.textContent = '0';
             
-            // 移除开始界面动画
-            const startScreen = document.getElementById('startScreen');
+            // 隐藏开始界面
             startScreen.style.animation = 'fadeOut 0.5s forwards';
-            
-            // 移除角色待机动画
+            setTimeout(() => {
+                startScreen.style.display = 'none';
+            }, 500);
+
+            // 重置角色状态
             runner.classList.remove('idle');
-            
-            // 重置角色位置
             runner.style.transform = 'translateY(0)';
 
             // 清除现有障碍物
@@ -114,47 +87,56 @@
             
             // 启动障碍物生成
             obstacleInterval = setInterval(createObstacle, 1500);
+        }
+
+        function createObstacle() {
+            if (!gameActive) return;
             
-            // 添加游戏开始动画
-            gameContainer.classList.add('game-start');
-        }
+            const obstacle = document.createElement('div');
+            obstacle.classList.add('obstacle');
+            obstacle.style.animationDuration = `${Math.max(1.5, 3 - score/20)}s`;
+            obstacle.style.right = '-50px';
+            gameContainer.appendChild(obstacle);
 
-        // 新增动画函数
-        function fadeOut(element) {
-            element.style.opacity = 1;
-            (function fade() {
-                if ((element.style.opacity -= 0.1) < 0) {
-                    element.style.display = "none";
-                } else {
-                    requestAnimationFrame(fade);
+            // 碰撞检测
+            const checkCollision = setInterval(() => {
+                if (!gameActive) return;
+                
+                const runnerRect = runner.getBoundingClientRect();
+                const obstacleRect = obstacle.getBoundingClientRect();
+
+                if (
+                    runnerRect.left < obstacleRect.right &&
+                    runnerRect.right > obstacleRect.left &&
+                    runnerRect.top < obstacleRect.bottom &&
+                    runnerRect.bottom > obstacleRect.top
+                ) {
+                    gameOver();
                 }
-            })();
+            }, 10);
+
+            obstacle.addEventListener('animationend', () => {
+                obstacle.remove();
+                clearInterval(checkCollision);
+                if (gameActive) {
+                    score++;
+                    scoreElement.textContent = score;
+                }
+            });
         }
 
-        // 修改游戏结束逻辑
         function gameOver() {
             gameActive = false;
             clearInterval(obstacleInterval);
             
             // 显示开始界面
-            const startScreen = document.getElementById('startScreen');
             startScreen.style.display = 'block';
-            startScreen.style.animation = 'fadeIn 0.5s forwards';
+            startScreen.style.animation = 'fadeIn 0.5s';
             
-            // 恢复角色待机动画
+            // 恢复角色动画
             runner.classList.add('idle');
             
             alert(`游戏结束！得分：${score}`);
-        }
-
-        // 新增淡入动画
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes fadeOut {
-            to { opacity: 0; }
         }
     </script>
 </body>
