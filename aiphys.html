@@ -1,0 +1,285 @@
+<!-- Code Completely With AI -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>终极物理模拟实验室</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body { margin: 0; }
+        #info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            max-width: 300px;
+        }
+        #tutorial {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+        }
+        .toolbar {
+            position: fixed;
+            right: 20px;
+            top: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 10px;
+        }
+        button {
+            margin: 5px;
+            padding: 8px 15px;
+            background: #2196F3;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: 0.3s;
+        }
+        button.active {
+            background: #4CAF50;
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h3>实验室指南</h3>
+        <p>当前模式: <span id="mode">基础物理</span></p>
+        <p>剩余粒子: <span id="particleCount">0</span></p>
+    </div>
+    <div id="tutorial">
+        <div id="tutorial-step">欢迎来到物理实验室！请点击继续开始教程</div>
+        <button onclick="nextTutorialStep()">继续</button>
+    </div>
+    <div class="toolbar">
+        <button onclick="setMode('basic')">基础物理</button>
+        <button onclick="setMode('fluid')">流体动力学</button>
+        <button onclick="setMode('soft')">软体物理</button>
+        <button onclick="setMode('em')">电磁场</button>
+    </div>
+
+<script>
+// 初始化Three.js场景
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// 初始化CANNON.js物理世界
+const world = new CANNON.World();
+world.gravity.set(0, -9.82, 0);
+world.solver.iterations = 20;
+
+// 初始化轨道控制器
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+camera.position.set(0, 5, 10);
+controls.update();
+
+// 物理实体存储
+const physicsMeshes = [];
+let currentMode = 'basic';
+let tutorialStep = 0;
+
+// 教程步骤内容
+const tutorialSteps = [
+    "步骤1: 使用WASD移动视角，鼠标右键拖动旋转视角",
+    "步骤2: 点击地面创建基础物理物体（立方体）",
+    "步骤3: 尝试切换到流体模式并绘制流体",
+    "步骤4: 在电磁场模式下观察电荷相互作用",
+    "教程完成！自由探索各种物理模式吧！"
+];
+
+// 初始化地面
+const groundGeometry = new THREE.PlaneGeometry(20, 20);
+const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x444444 });
+const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+groundMesh.rotation.x = -Math.PI/2;
+scene.add(groundMesh);
+
+const groundBody = new CANNON.Body({
+    mass: 0,
+    shape: new CANNON.Plane()
+});
+groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0), -Math.PI/2);
+world.addBody(groundBody);
+
+// 添加环境光
+scene.add(new THREE.AmbientLight(0x404040));
+
+// 创建定向光
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(5, 5, 5);
+scene.add(light);
+
+// 物理模拟循环
+function animate() {
+    requestAnimationFrame(animate);
+    world.step(1/60);
+    
+    // 同步物理和图形对象
+    physicsMeshes.forEach(({ mesh, body }) => {
+        mesh.position.copy(body.position);
+        mesh.quaternion.copy(body.quaternion);
+    });
+
+    renderer.render(scene, camera);
+}
+
+// 交互事件处理
+window.addEventListener('click', (event) => {
+    // 转换鼠标点击坐标到3D空间
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+
+    const intersects = raycaster.intersectObjects([groundMesh]);
+    if (intersects.length > 0) {
+        const pos = intersects[0].point;
+        switch(currentMode) {
+            case 'basic': createBox(pos); break;
+            case 'fluid': createFluid(pos); break;
+            case 'soft': createSoftBody(pos); break;
+            case 'em': createChargedParticle(pos); break;
+        }
+    }
+});
+
+// 模式切换函数
+function setMode(mode) {
+    currentMode = mode;
+    document.querySelectorAll('.toolbar button').forEach(btn => 
+        btn.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('mode').textContent = {
+        basic: '基础物理', 
+        fluid: '流体动力学',
+        soft: '软体物理',
+        em: '电磁场'
+    }[mode];
+}
+
+// 创建基础物体
+function createBox(pos) {
+    // 物理实体
+    const boxShape = new CANNON.Box(new CANNON.Vec3(0.5,0.5,0.5));
+    const boxBody = new CANNON.Body({ mass: 1 });
+    boxBody.addShape(boxShape);
+    boxBody.position.set(pos.x, pos.y + 5, pos.z);
+    world.addBody(boxBody);
+
+    // 图形实体
+    const boxGeometry = new THREE.BoxGeometry(1,1,1);
+    const boxMaterial = new THREE.MeshPhongMaterial({ color: 0xff4444 });
+    const boxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
+    scene.add(boxMesh);
+
+    physicsMeshes.push({ mesh: boxMesh, body: boxBody });
+}
+
+// 流体粒子系统（简化SPH实现）
+class FluidParticle {
+    constructor(pos) {
+        this.body = new CANNON.Body({
+            mass: 0.1,
+            position: new CANNON.Vec3(pos.x, pos.y + 2, pos.z),
+            shape: new CANNON.Sphere(0.2)
+        });
+        
+        this.mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(0.2),
+            new THREE.MeshPhongMaterial({ color: 0x00ffff })
+        );
+        
+        world.addBody(this.body);
+        scene.add(this.mesh);
+        physicsMeshes.push({ mesh: this.mesh, body: this.body });
+    }
+}
+
+// 软体物理（质量弹簧系统）
+function createSoftBody(pos) {
+    const softBody = new CANNON.Body({ mass: 1 });
+    const nodes = [];
+    
+    // 创建节点和弹簧
+    for(let i=0; i<8; i++) {
+        const node = new CANNON.Body({ mass: 0.1 });
+        node.addShape(new CANNON.Sphere(0.1));
+        node.position.set(
+            pos.x + (Math.random()-0.5)*0.5,
+            pos.y + 3 + (Math.random()-0.5)*0.5,
+            pos.z + (Math.random()-0.5)*0.5
+        );
+        softBody.addShape(node.shapes[0]);
+        nodes.push(node);
+    }
+    
+    // 添加弹簧约束
+    nodes.forEach((node, i) => {
+        for(let j=i+1; j<nodes.length; j++) {
+            const spring = new CANNON.Spring(node, nodes[j], {
+                restLength: 1,
+                stiffness: 50,
+                damping: 5
+            });
+            world.addSpring(spring);
+        }
+    });
+}
+
+// 电磁场系统
+class ChargedParticle {
+    constructor(pos, charge) {
+        this.charge = charge;
+        this.body = new CANNON.Body({
+            mass: 1,
+            position: new CANNON.Vec3(pos.x, pos.y + 2, pos.z),
+            shape: new CANNON.Sphere(0.3)
+        });
+        
+        this.mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(0.3),
+            new THREE.MeshPhongMaterial({ 
+                color: charge > 0 ? 0xff0000 : 0x0000ff 
+            })
+        );
+        
+        world.addBody(this.body);
+        scene.add(this.mesh);
+        physicsMeshes.push({ mesh: this.mesh, body: this.body });
+    }
+}
+
+// 教程系统
+function nextTutorialStep() {
+    tutorialStep = Math.min(tutorialStep + 1, tutorialSteps.length - 1);
+    document.getElementById('tutorial-step').textContent = tutorialSteps[tutorialStep];
+    
+    if(tutorialStep === 4) {
+        document.getElementById('tutorial').style.display = 'none';
+    }
+}
+
+// 启动模拟
+animate();
+</script>
+</body>
+</html>
+    </script>
+</body>
+</html>
