@@ -1,5 +1,5 @@
-var zhufuyu = "2024";
-var daojishi = "2024/1/1 00:00:00";
+var zhufuyu = "2026";
+var daojishi = "2026/1/1 00:00:00";
 var tishi = "跨越";
 
 document.getElementById("label").innerHTML = tishi;
